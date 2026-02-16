@@ -1,3 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">BidCarft Agent</string>
+    <string name="app_name">BidCraft Agent</string>
+    <!-- Backend base URL for real-device testing (use your machine IP and port) -->
+    <string name="server_base_url">http://10.10.131.143:4000/</string>
 </resources>

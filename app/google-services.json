@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "972730731289",
+    "project_id": "bidcarft-agent",
+    "storage_bucket": "bidcarft-agent.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:972730731289:android:7ab7755cc11e218324d388",
+        "android_client_info": {
+          "package_name": "com.example.bidcarftagent"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "972730731289-pu88ojhik4dh1bis9llh9598hsicab17.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bidcarftagent",
+            "certificate_hash": "030c2b85761618c9a6fd26a02d4638c2c7e135f2"
+          }
+        },
+        {
+          "client_id": "972730731289-28m6irp6uvetm75p04bu7ucvkfaect77.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNmqHqd5LdlbFPtQEXVZ2zATq_AOcnTyk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "972730731289-28m6irp6uvetm75p04bu7ucvkfaect77.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
