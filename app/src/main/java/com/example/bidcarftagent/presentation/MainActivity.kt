@@ -13,6 +13,9 @@ import com.example.bidcarftagent.presentation.home.HomeScreen
 import com.example.bidcarftagent.presentation.ui.screens.login.LoginScreen
 import com.example.bidcarftagent.presentation.ui.screens.login.LoginViewModel
 import com.example.bidcarftagent.presentation.ui.theme.BidCarftAgentTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -21,8 +24,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            BidCarftAgentTheme {
+            val settingsViewModel: com.example.bidcarftagent.presentation.settings.SettingsViewModel = hiltViewModel()
+            val isDark by settingsViewModel.isDark.collectAsState()
+            BidCarftAgentTheme(darkTheme = isDark) {
                 val navController = rememberNavController()
+                // Observe HomeViewModel navigation events (settings) at app level
+                val homeVm: com.example.bidcarftagent.presentation.home.HomeViewModel = hiltViewModel()
+                LaunchedEffect(homeVm.navigationEvents) {
+                    homeVm.navigationEvents.collect { ev ->
+                        when (ev) {
+                            is com.example.bidcarftagent.presentation.home.HomeNavigationEvent.NavigateToSettings -> {
+                                navController.navigate("settings")
+                            }
+                            else -> { /* ignore here */ }
+                        }
+                    }
+                }
                 
                 NavHost(navController = navController, startDestination = "login") {
                     composable("login") {
@@ -75,11 +92,19 @@ class MainActivity : ComponentActivity() {
                             },
                             onNavigateToProfile = {
                                 navController.navigate("profile")
+                            },
+                            onNavigateToSettings = {
+                                navController.navigate("settings")
                             }
                         )
                     }
                     composable("profile") {
                         com.example.bidcarftagent.presentation.profile.ProfileScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("settings") {
+                        com.example.bidcarftagent.presentation.settings.SettingsScreen(
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }

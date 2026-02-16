@@ -92,11 +92,11 @@ fun AgentProcessingScreen(
             )
         },
         bottomBar = {
-            if (uiState.isCompleted && uiState.proposalReady) {
-                BottomActionBarCompletion(
-                    onSaveClick = viewModel::onSaveClicked,
-                    onShareClick = viewModel::onShareClicked,
-                    isLoading = uiState.isSavingPdf
+            if (uiState.isCompleted && uiState.proposalReady && uiState.isFeasible != null) {
+                FeasibilityBottomBar(
+                    isFeasible = uiState.isFeasible!!,
+                    hasReasons = uiState.feasibilityReasons.isNotEmpty(),
+                    onReasonsClick = { viewModel.onShowFeasibilityReasons() }
                 )
             }
         }
@@ -177,6 +177,91 @@ fun AgentProcessingScreen(
                     }
                 }
             }
+
+            // Show feasibility reasons dialog
+            if (uiState.showFeasibilityReasons && uiState.feasibilityReasons.isNotEmpty()) {
+                androidx.compose.ui.window.Dialog(onDismissRequest = {
+                    viewModel.onHideFeasibilityReasons()
+                }) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = "Feasibility Reasons",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD32F2F)
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            uiState.feasibilityReasons.forEachIndexed { index, reason ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "${index + 1}.",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFD32F2F)
+                                        ),
+                                        modifier = Modifier.width(28.dp)
+                                    )
+                                    Text(
+                                        text = reason,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = Color.Black
+                                        )
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Button(
+                                    onClick = { viewModel.shareFeasibilityByEmail() },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1897FF))
+                                ) {
+                                    Text(
+                                        "Share via Email",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1
+                                    )
+                                }
+
+                                OutlinedButton(
+                                    onClick = { viewModel.onHideFeasibilityReasons() },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1897FF))
+                                ) {
+                                    Text(
+                                        "Close",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -184,10 +269,10 @@ fun AgentProcessingScreen(
 // ... existing components ...
 
 @Composable
-fun BottomActionBarCompletion(
-    onSaveClick: () -> Unit,
-    onShareClick: () -> Unit,
-    isLoading: Boolean = false
+fun FeasibilityBottomBar(
+    isFeasible: Boolean,
+    hasReasons: Boolean,
+    onReasonsClick: () -> Unit
 ) {
     Surface(
         color = Color.White,
@@ -199,73 +284,71 @@ fun BottomActionBarCompletion(
                 .fillMaxWidth()
                 .padding(16.dp)
                 .navigationBarsPadding(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Secondary Action: Save
-            OutlinedButton(
-                onClick = onSaveClick,
-                enabled = !isLoading,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (isLoading) Color.Gray else Color(0xFF1897FF)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF1897FF)
-                )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = Color(0xFF1897FF),
-                        strokeWidth = 2.dp
+            if (isFeasible) {
+                // Feasible = true: show green success indicator full width
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFE8F5E9), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color(0xFF2E7D32),
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Saving...",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                } else {
-                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Save",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        text = "Feasibility: True",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32)
+                        )
                     )
                 }
-            }
-
-            // Primary Action: Share
-            Button(
-                onClick = onShareClick,
-                enabled = !isLoading,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isLoading) Color.Gray else Color(0xFF1897FF)
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+            } else {
+                // Feasible = false: show red indicator + Reasons button
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Color(0xFFFFEBEE), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Text(
-                        text = "Loading...",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                        text = "Feasibility: False",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD32F2F)
+                        )
                     )
-                } else {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Share",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                    )
+                }
+                if (hasReasons) {
+                    Button(
+                        onClick = onReasonsClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD32F2F)
+                        )
+                    ) {
+                        Text(
+                            text = "Reasons",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
                 }
             }
         }

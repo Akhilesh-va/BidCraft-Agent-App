@@ -15,6 +15,7 @@ data class HomeUiState(
     val selectedFileName: String? = null,
     val isUploadSuccess: Boolean = false,
     val recentFiles: List<RecentFile> = emptyList(),
-    val userName: String = ""
+    val userName: String = "",
+    val userPhotoUrl: String? = null
 )
 

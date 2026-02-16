@@ -21,5 +21,8 @@ data class AgentProcessingUiState(
     val finalProposalHtml: String? = null,
     val showProposal: Boolean = false,
     val proposalReady: Boolean = false,
-    val isSavingPdf: Boolean = false
+    val isSavingPdf: Boolean = false,
+    val isFeasible: Boolean? = null,
+    val feasibilityReasons: List<String> = emptyList(),
+    val showFeasibilityReasons: Boolean = false
 )

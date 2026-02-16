@@ -58,6 +58,7 @@ class AgentProcessingViewModel @Inject constructor(
                             val parsed = try { gson.fromJson(proposal, Map::class.java) as? Map<*, *> } catch (_: Exception) { null }
                             val html = parsed?.get("reportHtml") as? String ?: parsed?.get("html") as? String
                             _uiState.update { it.copy(proposalReady = true, finalProposalHtml = html ?: it.finalProposalHtml) }
+                            extractAndSetFeasibility(proposal)
                             localRepo.clearWaitingForProposalFile()
                         }
                     } else {
@@ -162,6 +163,7 @@ class AgentProcessingViewModel @Inject constructor(
                                 val parsed = try { gson.fromJson(proposal, Map::class.java) as? Map<*, *> } catch (_: Exception) { null }
                                 val html = parsed?.get("reportHtml") as? String ?: parsed?.get("html") as? String
                                 _uiState.update { it.copy(proposalReady = true, finalProposalHtml = html ?: it.finalProposalHtml) }
+                                extractAndSetFeasibility(proposal)
                                 localRepo.clearWaitingForProposalFile()
                                 pendingProposalName = null
                             }
@@ -247,6 +249,80 @@ class AgentProcessingViewModel @Inject constructor(
                 _events.emit(AgentProcessingUiEvent.ShowMessage("Error: ${e.message}"))
             } finally {
                 _uiState.update { it.copy(isSavingPdf = false) }
+            }
+        }
+    }
+
+    /**
+     * Extract feasibility info from proposal JSON and update UI state.
+     */
+    private fun extractAndSetFeasibility(proposalJson: String) {
+        try {
+            val gson = com.google.gson.Gson()
+            val parsed = gson.fromJson(proposalJson, Map::class.java) as? Map<*, *> ?: return
+            val feasible = parsed["feasible"]
+            val isFeasible = when (feasible) {
+                is Boolean -> feasible
+                is String -> feasible.equals("true", ignoreCase = true)
+                else -> null
+            }
+            val reasons = mutableListOf<String>()
+            (parsed["feasibilityReasons"] as? List<*>)?.forEach { r ->
+                val str = r?.toString()
+                if (!str.isNullOrBlank()) reasons.add(str)
+            }
+            android.util.Log.d("AgentProcessingVM", "Feasibility: feasible=$isFeasible, reasons=$reasons")
+            _uiState.update { it.copy(isFeasible = isFeasible, feasibilityReasons = reasons) }
+        } catch (e: Exception) {
+            android.util.Log.w("AgentProcessingVM", "Failed to extract feasibility", e)
+        }
+    }
+
+    fun onShowFeasibilityReasons() {
+        _uiState.update { it.copy(showFeasibilityReasons = true) }
+    }
+
+    fun onHideFeasibilityReasons() {
+        _uiState.update { it.copy(showFeasibilityReasons = false) }
+    }
+
+    fun shareFeasibilityByEmail() {
+        viewModelScope.launch {
+            try {
+                val last = localRepo.getLastProposalFile() ?: ""
+                // Try to get email from Firebase user (Google Sign-In)
+                val userEmail = try {
+                    com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email
+                } catch (_: Exception) { null }
+
+                if (userEmail.isNullOrBlank()) {
+                    _events.emit(AgentProcessingUiEvent.ShowMessage("No email available from Google Sign-In"))
+                    return@launch
+                }
+
+                val reasons = _uiState.value.feasibilityReasons
+                val subject = "Feasibility reasons for ${if (last.isBlank()) "proposal" else last}"
+                val body = StringBuilder()
+                body.append("Feasibility: ${_uiState.value.isFeasible}\n\n")
+                if (reasons.isNotEmpty()) {
+                    reasons.forEachIndexed { i, r ->
+                        body.append("${i + 1}. $r\n")
+                    }
+                } else {
+                    body.append("No additional reasons provided.")
+                }
+
+                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                    data = android.net.Uri.parse("mailto:${userEmail}")
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                    putExtra(Intent.EXTRA_TEXT, body.toString())
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(Intent.createChooser(intent, "Send email").apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                _events.emit(AgentProcessingUiEvent.ShowMessage("Email app opened"))
+            } catch (e: Exception) {
+                android.util.Log.e("AgentProcessingVM", "shareFeasibilityByEmail error", e)
+                _events.emit(AgentProcessingUiEvent.ShowMessage("Failed to open email: ${e.message}"))
             }
         }
     }
@@ -454,6 +530,7 @@ class AgentProcessingViewModel @Inject constructor(
                 }
                 val html = extractHtmlFromProposal(proposalJson)
                 _uiState.update { it.copy(finalProposalHtml = html, showProposal = !html.isNullOrBlank()) }
+                extractAndSetFeasibility(proposalJson)
                 if (html.isNullOrBlank()) {
                     _events.emit(AgentProcessingUiEvent.ShowMessage("Proposal received but no HTML content"))
                 }
@@ -529,6 +606,7 @@ class AgentProcessingViewModel @Inject constructor(
                             val parsed = try { gson.fromJson(proposal, Map::class.java) as? Map<*, *> } catch (_: Exception) { null }
                             val html = parsed?.get("reportHtml") as? String ?: parsed?.get("html") as? String
                             _uiState.update { it.copy(proposalReady = true, finalProposalHtml = html ?: it.finalProposalHtml) }
+                            extractAndSetFeasibility(proposal)
                             localRepo.clearWaitingForProposalFile()
                             break
                         }

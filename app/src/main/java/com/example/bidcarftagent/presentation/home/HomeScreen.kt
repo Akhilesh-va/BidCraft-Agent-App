@@ -27,6 +27,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,7 +57,8 @@ import java.util.concurrent.TimeUnit
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigateToSummary: (String, String?) -> Unit = { _, _ -> },
-    onNavigateToProfile: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allRecent by viewModel.allRecentFiles.collectAsStateWithLifecycle()
@@ -63,6 +72,7 @@ fun HomeScreen(
         viewModel.navigationEvents.collect { event ->
             when (event) {
                 is HomeNavigationEvent.NavigateToSummary -> onNavigateToSummary(event.fileName, event.srsJson)
+                else -> { /* ignore other navigation events here */ }
             }
         }
     }
@@ -128,7 +138,7 @@ fun HomeScreen(
                 .padding(horizontal = 24.dp)
         ) {
             // Header
-            HomeHeader(userName = uiState.userName, onProfileClick = onNavigateToProfile)
+            HomeHeader(userName = uiState.userName, userPhotoUrl = uiState.userPhotoUrl, onProfileClick = onNavigateToProfile)
             
             Spacer(modifier = Modifier.height(24.dp))
             
@@ -146,10 +156,75 @@ fun HomeScreen(
                 )
             )
             Spacer(modifier = Modifier.height(16.dp))
-            QuickActionsGrid(
-                onNewBidClick = { viewModel.onNewBidClick() },
-                onHistoryClick = { viewModel.loadAllRecentFiles() }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val actions = listOf(
+                    Triple("New Bid", Icons.Default.Add, Color(0xFF1897FF)),
+                    Triple("Analytics", Icons.Default.Analytics, Color(0xFF9C27B0)),
+                    Triple("History", Icons.Default.History, Color(0xFFE91E63)),
+                    Triple("Settings", Icons.Default.Settings, Color(0xFF607D8B))
+                )
+                actions.forEach { (label, icon, color) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(color.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                                .clickable {
+                                    when (label) {
+                                        "New Bid" -> viewModel.onNewBidClick()
+                                        "History" -> viewModel.loadAllRecentFiles()
+                                        "Settings" -> onNavigateToSettings()
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = color,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            if (label == "Analytics") {
+                                val transition = rememberInfiniteTransition()
+                                val scale by transition.animateFloat(
+                                    initialValue = 0.96f,
+                                    targetValue = 1.04f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(durationMillis = 800)
+                                    )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .offset(x = (-4).dp, y = (-4).dp)
+                                        .scale(scale)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFE91E63))
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Soon",
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                                color = Color.Black.copy(alpha = 0.8f)
+                            )
+                        )
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(32.dp))
             
@@ -177,6 +252,10 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             RecentActivityList(uiState.recentFiles)
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            // Promotional Lottie card (PDF animation) — follows app UI/UX
+            PromotionalLottieCard()
         }
         
         // 4. Upload Bottom Sheet
@@ -448,7 +527,7 @@ fun UploadSrsBottomSheet(
 }
 
 @Composable
-fun HomeHeader(userName: String, onProfileClick: () -> Unit) {
+fun HomeHeader(userName: String, userPhotoUrl: String? = null, onProfileClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -479,11 +558,22 @@ fun HomeHeader(userName: String, onProfileClick: () -> Unit) {
                     .background(Color.White.copy(alpha = 0.5f), CircleShape)
                     .border(1.dp, Color.White, CircleShape)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile",
-                    tint = Color.Black
-                )
+                if (!userPhotoUrl.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = userPhotoUrl,
+                        contentDescription = "Profile",
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile",
+                        tint = Color.Black
+                    )
+                }
             }
         }
     }
@@ -541,6 +631,7 @@ fun QuickActionsGrid(
                             when (label) {
                                 "New Bid" -> onNewBidClick()
                                 "History" -> onHistoryClick()
+                                "Settings" -> { /* no-op for legacy grid */ }
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -634,6 +725,58 @@ fun RecentFileCard(item: com.example.bidcarftagent.presentation.home.RecentFile)
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = Color.Black.copy(alpha = 0.5f)
                     )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PromotionalLottieCard() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val resId = ctx.resources.getIdentifier("pdf", "raw", ctx.packageName).takeIf { it != 0 } ?: R.raw.upload_cloud
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(resId))
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .padding(top = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F9FF)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                LottieAnimation(
+                    composition = composition,
+                    iterations = LottieConstants.IterateForever,
+                    modifier = Modifier.size(72.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = "Do your Bid in Minutes",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFF0B355E)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Be Fast, Grab fast",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF6B7280)
                 )
             }
         }

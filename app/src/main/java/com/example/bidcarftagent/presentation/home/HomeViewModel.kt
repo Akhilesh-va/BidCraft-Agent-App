@@ -56,8 +56,10 @@ class HomeViewModel @Inject constructor(
         // load recent files into state (show top 3)
         viewModelScope.launch {
             val rec = localRepo.getRecentFiles().take(3)
-            val name = firebaseAuth.currentUser?.displayName ?: firebaseAuth.currentUser?.email ?: "Welcome"
-            _uiState.update { it.copy(recentFiles = rec, userName = name) }
+            val user = firebaseAuth.currentUser
+            val name = user?.displayName ?: user?.email ?: "Welcome"
+            val photo = user?.photoUrl?.toString()
+            _uiState.update { it.copy(recentFiles = rec, userName = name, userPhotoUrl = photo) }
         }
     }
 
@@ -161,9 +163,16 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    fun onSettingsClick() {
+        viewModelScope.launch {
+            _navigationEvents.emit(HomeNavigationEvent.NavigateToSettings)
+        }
+    }
 }
 
 sealed interface HomeNavigationEvent {
     data class NavigateToSummary(val fileName: String, val srsJson: String?) : HomeNavigationEvent
+    object NavigateToSettings : HomeNavigationEvent
 }
 
